@@ -39,4 +39,57 @@ class TaskGeneratorApp:
         self.task_label = ttk.Label(self.root, text="", font=("Arial", 12), wraplength=300)
         self.task_label.grid(row=2, column=0, columnspan=2, pady=10)
 
- 
+        # История задач
+        ttk.Label(self.root, text="История:").grid(row=3, column=0, padx=10, pady=5, sticky="nw")
+        self.history_listbox = tk.Listbox(self.root, width=50, height=10)
+        self.history_listbox.grid(row=4, column=0, columnspan=2, padx=10)
+
+    def load_tasks(self):
+        """Загружает задачи из файла JSON с обработкой ошибок."""
+        if os.path.exists(TASKS_FILE):
+            try:
+                with open(TASKS_FILE, 'r', encoding='utf-8') as f:
+                    self.tasks = json.load(f)
+            except (json.JSONDecodeError, IOError):
+                messagebox.showwarning("Ошибка", f"Файл {TASKS_FILE} повреждён или пуст. Будет создан новый.")
+                self.tasks = DEFAULT_TASKS.copy()
+                self.save_tasks()
+        else:
+            self.tasks = DEFAULT_TASKS.copy()
+            self.save_tasks()
+
+    def save_tasks(self):
+        """Сохраняет задачи в файл JSON с обработкой ошибок."""
+        try:
+            with open(TASKS_FILE, 'w', encoding='utf-8') as f:
+                json.dump(self.tasks, f, ensure_ascii=False, indent=4)
+        except IOError:
+            messagebox.showerror("Ошибка", "Не удалось сохранить задачи в файл.")
+
+    def generate_task(self):
+        """Генерирует случайную задачу с учётом фильтра."""
+        filter_val = self.filter_type.get()
+        available_tasks = [t for t in self.tasks if filter_val == "все" or t["type"] == filter_val]
+
+        if not available_tasks:
+            messagebox.showinfo("Нет задач", f"Нет задач типа '{filter_val}'.")
+            return
+
+        task = random.choice(available_tasks)
+        self.task_label.config(text=f"Задача: {task['text']} (Тип: {task['type']})")
+
+        # Добавляем в историю
+        self.history.append(task)
+        self.update_history_display()
+
+    def update_history_display(self):
+        """Обновляет отображение истории."""
+        self.history_listbox.delete(0, tk.END)
+        for i, task in enumerate(self.history[-10:], start=1):  # Показываем последние 10 задач
+            self.history_listbox.insert(tk.END, f"{i}. {task['text']} ({task['type']})")
+
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = TaskGeneratorApp(root)
+    root.mainloop()
